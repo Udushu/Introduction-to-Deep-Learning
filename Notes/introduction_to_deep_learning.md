@@ -183,13 +183,49 @@ $L(w) = -\displaystyle\sum_{i=1}^{n} { \displaystyle\sum_{k=1}^{K}{ \left\{ \lef
 
 The resulting loss function can now be minimized with respect to the parameter vector $w$ to fit the optimal linear classification model.
 
+#### 1.1.2 Gradient Descent
+_Gradient Descent (GD)_ is a generic method that can minimize any differentiable loss function. GD solves the following optimization problem:
 
+$\underset{w}{\text{argmin}} L(w)$
 
+Suppose that an initial approximation of $w$ denoted $w^0$ is an arbitrary point on the surface defined by the loss function $L(w)$ is available. It now needs to be refined, such that the value of $L(w)$ is minimized. The surface of the loss function can be very complicated: multiple optima and saddle points may be present, as shown on the figure below:
 
+![loss surface](images\1_1_2-1.png =300x)
 
+A direction moving in which from point $w^0$ leads to a decrease of the function $L(w)$ value is required. From the basic calculus, the gradient vector of the loss function with respect to the parameter vector $w$ points to the direction of the steepest ascent of the loss function. Therefore, the negative of the gradient vector will point to the direction of the steepest descent:
+
+$\nabla L(w) = \left( \frac{\partial L(w)}{\partial w_0}, \dots, \frac{\partial L(w)}{\partial w_p} \right)$
+
+So in order to reduce the value of the loss function $L(w)$ one should calculate the gradient vector of the loss function and move in the direction of opposite to the one in which the gradient vector points. Given an initial guess values of the parameter vector $w$ set at $w^0$, the next value $w^1% can be calculated as:
+
+$w^1 \leftarrow w^0 - \eta_1 \nabla L(w^0)$
+
+The process is then repeated until the convergence criterion is achieved
 
 $t \leftarrow 0\\
 \textbf{while True:}\\
-\quad w^t \leftarrow w^{t-1} - \eta \nabla L(w^{t-1})\\
+\quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1})\\
 \quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
 \quad t \leftarrow t+1$
+
+where $\epsilon$ is some convergence criterion selected a priory.
+
+The path of the optimization algorithm along the surface of a simple loss function is shown on the figure:
+
+![loss path](images\1_1_2-2.png =250x)
+
+There are many heuristics that are used any time the GD is applied:
+
+* How to initialize the parameter vector $w$ and select the value $w^0$; this can be done either randomly or using some heuristic.
+
+* How to select the step size $\eta_t$; if the step size is too small then the convergence will be unnecessarily slow, and a large value of the step size may result in a divergence.
+
+* How and when to stop the optimization process. Once approach is to monitor the change in the distance between the parameter vectors from two consecutive iterations and stop when the step change becomes smaller than some criterion $\epsilon$, however, there are many other options. For example, the difference between the values of the loss function can be monitored as well in a similar fashion.
+
+* How to approximate gradient $\nabla L(w^{t-1})$; calculating the gradient of the loss function and summing the losses for each example from the training set can be computationally challenging for large datasets; thus the gradients are typically approximated.
+
+Gradient for the MSE Loss Function can be expressed as:
+
+$L(w) = \frac{1}{n} {\lVert Xw-y \rVert}^2 \rightarrow \nabla L_w(w) = \frac{2}{n} X^T (Xw-y)$
+
+GD gives a general solution that can be applied to any differentiable loss function and typically requires reasonable amount of memory and computations for its deterministic variants.
