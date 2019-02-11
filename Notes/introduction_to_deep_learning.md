@@ -1,10 +1,6 @@
----
 # 1. Introduction to Deep Learning
----
 ## 1.1 Optimization
-
 ### 1.1.1 Preliminaries
-
 #### 1.1.1.1 Supervised Learning
 
 Adopt the following notation:
@@ -326,7 +322,7 @@ $\begin{cases}
    \text{subject to:} \ {\lVert w \rVert}^2 \le C
 \end{cases}$
 
-![l2 constrained optmization](images\1_1_3_2-2.png =300x)
+![l2 constrained optimization](images\1_1_3_2-2.png =300x)
 
 There is a one-to-one correspondence with the constraint $C$ and the regularization parameter $\lambda$. This forces the optimizer to select the point that has the minimum loss within the ball of radius $C$ and centered at zero.
 
@@ -352,7 +348,7 @@ $\begin{cases}
    \text{subject to:} \ |w| \le C
 \end{cases}$
 
-![l1 constrained optmization](images\1_1_3_2-4.png =300x)
+![l1 constrained optimization](images\1_1_3_2-4.png =300x)
 
 Going back the example problem with 8 data points, if parameterized by 8th order polynomial hypothesis function $h_w(x)= w_0 + w_1x + w_2x^2 + \dots + w_{8}x^{8}$ and optimized under the L2 Penalty loss function, the model yields the parameter vector  $w=(0.78, 0.03, \mathbf{0.00}, \mathbf{0.00}, \mathbf{0.00}, −0.16, −0.01, \mathbf{0.00})$  with the following data fit:
 
@@ -372,3 +368,41 @@ Other commonly used methods for regularization are:
 * _Early Stopping_ is the method that compares the performance of the model on the test set vs. performance of the model on the training set during the GD and stops training when the performance on the test set stops improving.
 
 * _Collecting more data_ is also a way to avoid overfitting, since the more data is available, the harder it is for the model to overfit.
+
+#### 1.1.4 Stochastic Gradient Descent
+Recall that the GD attempts to minimize a loss function which is usually a sum of losses on separate examples from the entire training set:
+
+$L(w) = \frac{1}{n} \displaystyle\sum_{i=1}^{n}{L(w|x_i, y_i)}$
+
+Next, with the initial guess of the optimal parameter vector $w^0$:
+
+The process is then repeated until the convergence criterion is achieved
+
+$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1})\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+The gradient term $\nabla L(w)$ for the simple MSE loss function is $\nabla L(w) = \frac{1}{n} \sum_{i=1}^{n}{(w^T x_i - y_i)^2}$, where $n$ gradients should be computed on each step. If the data doesn't fit into memory, it should be read from storage on every GD step, which can be costly. This makes GD infeasible for large scale problems.
+
+To overcome this problem, _Stochastic Gradient Descent (SGD)_ may be used. It is similar to the regular GD, with one key difference: it starts at some initial location $w^0$ and the on every step $t$, it selects the random example $i$ from the training set; the gradient is then calculated only for this selected random example. The step is then made in the direction of this gradient. Thus SGD approximates the gradient of the loss function by the gradient of the loss only on one example:
+
+$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1}|x_i, y_i)\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+In the algorithm above $\mathcal{U}\left\{ 1,n \right\}$ denotes a uniform discrete distribution that starts at value $1$ and ends on value $n$ inclusively. Here and in the future algorithms expression $i \leftarrow \mathcal{U}\left\{ 1,n \right\}$ indicates drawing one random sample from the specified distribution.
+
+This approach leads to noisy approximations, analysis of the SGD performance on some sample shows that the loss function can increase or decrease during the optimization process:
+
+![sgd performance](images\1_1_4-1.png =300x)
+
+However, if enough iterations of the SGD are performed, then the process will converge to some minimum.
+
+SGD has an advantage that it can be used in an online learning setting. If the data comes from a stream, then with each new particular example, the weights of the model may be updated by making a single step along the gradient.
+
+With SGD, learning rate $\eta_t$  must be chosen very carefully, because with the large learning rates, the SGD will not converge, and the small values of the learning rate lead to unnecessary long convergence times.
