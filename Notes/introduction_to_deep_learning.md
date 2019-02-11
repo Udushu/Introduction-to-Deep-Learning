@@ -406,3 +406,21 @@ However, if enough iterations of the SGD are performed, then the process will co
 SGD has an advantage that it can be used in an online learning setting. If the data comes from a stream, then with each new particular example, the weights of the model may be updated by making a single step along the gradient.
 
 With SGD, learning rate $\eta_t$  must be chosen very carefully, because with the large learning rates, the SGD will not converge, and the small values of the learning rate lead to unnecessary long convergence times.
+
+#### 1.1.5 Mini-Batch Gradient Descent
+To overcome some of the limitations of the SGD, the _Mini-Batch Gradient Descent_ was introduced. In Mini-Batch GD on every iteration $m$ random examples are chosen from the Training set. The loss function gradient is approximated by the average gradient across the selected $m$ examples, instead of a single example like in SGD. The Mini-Batch GD steps toward the approximation of the gradient on each iteration:
+
+$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad w^t \leftarrow w^{t-1} - \eta_t \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+Note, that regular SGD becomes a special case of the Mini-Batch GD with $m=1$.
+
+Depending on the batch size $m$, this approach can still be used in online learning setting: an updated is made when $m$ examples from the stream are accumulated. The updates of the Mini-Batch GD have much less noise and the variation of the gradient approximations is reduced. The learning rate $\eta_t$  should still be chosen carefully.
+
+There is another problem with both Deterministic and Stochastic variations of the GD method; it is known from calculus that the gradient is always orthogonal to the level lines. If one starts at some point $w^0$, and then makes a step that lands on the other side of the function, and then another step that lands on the opposite side again, and so on... In such setting the GD will oscillate and it will take the GD many iterations to converge. See figure below for illustration:
+
+![gd oscillation](images\1_1_5-1x.png =300x)
