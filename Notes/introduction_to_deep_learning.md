@@ -186,7 +186,7 @@ The resulting loss function can now be minimized with respect to the parameter v
 #### 1.1.2 Gradient Descent
 _Gradient Descent (GD)_ is a generic method that can minimize any differentiable loss function. GD solves the following optimization problem:
 
-$\underset{w}{\text{argmin}} L(w)$
+$\underset{w}{\text{argmin}} \ L(w)$
 
 Suppose that an initial approximation of $w$ denoted $w^0$ is an arbitrary point on the surface defined by the loss function $L(w)$ is available. It now needs to be refined, such that the value of $L(w)$ is minimized. The surface of the loss function can be very complicated: multiple optima and saddle points may be present, as shown on the figure below:
 
@@ -229,3 +229,146 @@ Gradient for the MSE Loss Function can be expressed as:
 $L(w) = \frac{1}{n} {\lVert Xw-y \rVert}^2 \rightarrow \nabla L_w(w) = \frac{2}{n} X^T (Xw-y)$
 
 GD gives a general solution that can be applied to any differentiable loss function and typically requires reasonable amount of memory and computations for its deterministic variants.
+
+#### 1.1.3 Regularization
+In mathematics, statistics, and computer science, particularly in machine learning and inverse problems, regularization is the process of adding information in order to solve an ill-posed problem or to prevent overfitting. Regularization applies to objective functions in ill-posed optimization problems.
+
+##### 1.1.3.1 Overfitting Problem and Model Validation
+A model needs to be validated to check how well they perform not only on the training data, but also how well do they generalize to the new data.
+
+Suppose that a classifier was trained and achieved 80% accuracy on the training data. There is no guarantee that the model will work well on new data. There is a possibility that the model overfits the data: the model has simply remembered the training examples and is not capable to generalize at all.
+
+Consider an example with $X \in \mathbb{R}$ with the following linear regression model: $h_w(x)=w_0 + w_1x$:
+
+![underfitting](images\1_1_3_1-1.png =300x)
+
+On the figure, the green line is the true target function, and the blue line is the best prediction by the proposed linear regression model. This is an example of the model _underfitting_ the data, meaning that the model is too simple for the data and thus can not capture the complexity of the dataset, since the dependency between $x$ and $y$ is not linear.
+
+This problem of underfitting can be fixed by proposing and using a polynomial model: $h_w(x)=w_0 + w_1x + w_2x^2 + w_3x^3 + w_4x^4$:
+
+![just right](images\1_1_3_1-2.png =300x)
+
+This model adds artificial features to the training examples such as powers of $x$ up to the 4th degree. This model fits the data very well and provides good predictive capabilities, since it captures the target function.
+
+The number of artificial feature and therefore the parameters of the model may be increased to an arbitrary degree: $h_w(x)= w_0 + w_1x + w_2x^2 + \dots + w_{15}x^{15}$:
+
+![overfitting](images\1_1_3_1-3.png =300x)
+
+
+This model fits the training data nearly perfectly by placing the model function almost exactly through each training data point. However, the resulting function is too complex for the training data, so it _overfits_ the data, and will have poor performance on the new examples, that is this model will not generalize to the new data.
+
+Another example of overfitting would be memorization of the dataset by the model. Suppose that the dataset consists of 8 points: $x=\left\{ 0.2, 0.4, \dots, 1.6 \right\} \in \mathbb{R}$ and the target function is $y=sin(x)+\epsilon$ where $\epsilon \sim \mathcal{N}(0, \sigma^2)$ and $\sigma^2$ is some small number. Let the model be $h_w(x)= w_0 + w_1x + w_2x^2 + \dots + w_{8}x^{8}$. After the model was fitted into the data, the parameter vector $w=(130.0, −525.8, \dots, 102.6)$  was found:
+
+![overfitting](images\1_1_3_1-4.png =300x)
+
+he model simply memorized the training examples exactly and will give perfect predictions for the training set. This model however will have no ability to generalize to the new data, that is for any point not from the data set, the quality of predictions will be very poor. Note that all values of the data points are within $[−1, 1]$  range, but the parameter values are relatively large (in hundreds).
+
+###### Holdout Validation Test
+Ability of models to underfit or overfit the training data leads to requirement to validate the models and check whether they are overfitted or not. This can be done by taking all training examples and splitting them into two pars:
+
+![holdout](images\1_1_3_1-5.png =400x)
+
+
+The model is trained using the _Training set_ data and then tested with the _Holdout set_. If the loss is high on both the holdout set and the training set, then the model has high bias and is underfitting, and if the loss is high on the holdout set, but is low on the training set, then the model has high variance and is overfitting the data.
+
+The size of the Holdout set is chosen based on the following considerations:
+
+* Small holdout set:
+  * The training set is representative of the entire data set.
+  * The holdout set quality has high variance and may be not representative.
+
+* Large holdout set:
+  * Holdout set quality has low variance.
+  * Holdout set quality has high bias
+  * The training set may be no longer representative of the entire data set.
+
+Typical training/holdout breakdown is 70% / 30%, but there is a better approach.
+
+###### $k$-Fold Cross-Validation Test
+In _$k$-Fold Cross-Validation_, the original sample is randomly partitioned into $k$ equal size subsamples. Of the $k$ subsamples, a single subsample is retained as the validation data for testing the model, and the remaining $k-1$ subsamples are used as training data. The cross-validation process is then repeated $k$ times (the folds), with each of the $k$ subsamples used exactly once as the validation data. The $k$ results from the folds can then be averaged (or otherwise combined) to produce a single estimation.
+
+![k-fold cross-validation](images\1_1_3_1-6.png =400x)
+
+The advantage of this method is that all observations are used for both training and validation, and each observation is used for validation exactly once.
+
+For classification problems, one typically uses _stratified $k$-fold cross-validation_, in which the folds are selected so that each fold contains roughly the same proportions of class labels.
+
+##### 1.1.3.2 Model Regularization
+One of the major aspects in training machine learning models is to avoid overfitting. Going back to the example with just 8 data points $x=\left\{ 0.2, 0.4, \dots, 1.6 \right\} \in \mathbb{R}$ and the target function is $y=sin(x)+\epsilon$ where $\epsilon \sim \mathcal{N}(0, \sigma^2)$ and $\sigma^2$ is some small number, a simpler model such as $h_w(x)=w_0 + w_1x + w_2x^2 + w_3x^3$ can be used to achieve much better performance and a better parameter vector $w=(0.634, 0.918, -0.626)$:
+
+![better model](images\1_1_3_2-1.png =300x)
+
+This model has only three features, and its complexity matches the complexity of the data. Observe that the model's weights are not very large, this an indicator of a well fitting model. A model that overfits the data will typically have weights that are very large. This observation can be used to solve the problem of complex models overfitting the data:
+
+Modify the loss function as follows:
+
+$L_{reg}(w) = L(w) + \lambda R(w)$
+
+where:
+
+* $L(w)$ is the original loss function of the model.
+* $R(w)$ is the regularizer (or penalty) function (a function that penalizes the loss function for having large weights).
+* $\lambda$ is the regularization strength, a hyperparameter that controls the model's performance on the training set and the model's ultimate complexity.
+
+Now the new, modified, loss function $L_{reg}(w)$ is minimized with respect to the parameter vector $w$.
+
+###### L2 Penalty
+One of the most commonly used regularizers is the _L2 Penalty_. This regularizer drives all weight closer to zero without explicitly reaching it.
+
+$R(w) = {\lVert w \rVert}^2 = \displaystyle\sum_{j=1}^{p}{w_j^2}$
+
+**Note**: L2 regularization does not include the bias term!
+
+It can be shown that L2 Regularization effectively converts the unconstrained optimization problem of GD into a constrained optimization problem:
+
+$\begin{cases}
+   \underset{w}{\text{argmin}} \ L(w) \\
+   \text{subject to:} \ {\lVert w \rVert}^2 \le C
+\end{cases}$
+
+![l2 constrained optmization](images\1_1_3_2-2.png =300x)
+
+There is a one-to-one correspondence with the constraint $C$ and the regularization parameter $\lambda$. This forces the optimizer to select the point that has the minimum loss within the ball of radius $C$ and centered at zero.
+
+Going back the example problem with 8 data points, if parameterized by 8th order polynomial hypothesis function $h_w(x)= w_0 + w_1x + w_2x^2 + \dots + w_{8}x^{8}$ and optimized under the L2 Penalty loss function, the model yields the parameter vector $w=(0.166, 0.168, 0.130, 0.075, 0.014, −0.040, −0.050, 0.018)$. Compare to the not regularized parameter vector for the same model: $w_{\text{original}}=(130.0, −525.8, \dots, 102.6)$ that has values in hundreds. The model provides the following fit:
+
+![l2 constrained model](images\1_1_3_2-3.png =300x)
+
+Note that the weights are small and the fit is similar to the one produced by a less complex model.
+
+###### L1 Penalty
+Another commonly used regularizer is the _L1 Penalty_. This regularizer drives some of the weights exactly to zero, and tends to learn sparse models as well as select only the most important features:
+
+$R(w) = {\lVert w \rVert}^1 = \displaystyle\sum_{j=1}^{p}{|w_j|}$
+
+**Note**: L1 regularization does not include the bias term!
+
+L1 penalty is not differentiable (due to the absolute value operation in the regularizer function) and therefore cannot be optimized with simple gradient methods, and requires more advanced optimization techniques.
+
+It can be shown that L1 Regularization effectively converts the unconstrained optimization problem of GD into a constrained optimization problem:
+
+$\begin{cases}
+   \underset{w}{\text{argmin}} \ L(w) \\
+   \text{subject to:} \ |w| \le C
+\end{cases}$
+
+![l1 constrained optmization](images\1_1_3_2-4.png =300x)
+
+Going back the example problem with 8 data points, if parameterized by 8th order polynomial hypothesis function $h_w(x)= w_0 + w_1x + w_2x^2 + \dots + w_{8}x^{8}$ and optimized under the L2 Penalty loss function, the model yields the parameter vector  $w=(0.78, 0.03, \mathbf{0.00}, \mathbf{0.00}, \mathbf{0.00}, −0.16, −0.01, \mathbf{0.00})$  with the following data fit:
+
+![l1 constrained model](images\1_1_3_2-5.png =300x)
+
+Note that some of the weights are exactly zero and others are small, and the fit is similar to the one produced by a less complex model.
+
+###### Other Regularization Techniques
+Other commonly used methods for regularization are:
+
+* _Dimensionality Reduction_ by removing some redundant features or by deriving some new features from existing features (e.g. with the Principal Component Analysis) that replace the existing features.
+
+* _Data Augmentation_ through generation of new artificial training examples by transforming existing examples so it is harder for the model to memorize the training set.
+
+* _Dropout_ is the technique of rand disabling some of the neurons in a neural network. This method will be studies in details in future sections.
+
+* _Early Stopping_ is the method that compares the performance of the model on the test set vs. performance of the model on the training set during the GD and stops training when the performance on the test set stops improving.
+
+* _Collecting more data_ is also a way to avoid overfitting, since the more data is available, the harder it is for the model to overfit.
