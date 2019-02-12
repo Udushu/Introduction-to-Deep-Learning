@@ -198,7 +198,7 @@ $w^1 \leftarrow w^0 - \eta_1 \nabla L(w^0)$
 
 The process is then repeated until the convergence criterion is achieved
 
-$t \leftarrow 0\\
+>$t \leftarrow 0\\
 \textbf{while True:}\\
 \quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1})\\
 \quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
@@ -378,7 +378,7 @@ Next, with the initial guess of the optimal parameter vector $w^0$:
 
 The process is then repeated until the convergence criterion is achieved
 
-$t \leftarrow 0\\
+>$t \leftarrow 0\\
 \textbf{while True:}\\
 \quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1})\\
 \quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
@@ -388,7 +388,7 @@ The gradient term $\nabla L(w)$ for the simple MSE loss function is $\nabla L(w)
 
 To overcome this problem, _Stochastic Gradient Descent (SGD)_ may be used. It is similar to the regular GD, with one key difference: it starts at some initial location $w^0$ and the on every step $t$, it selects the random example $i$ from the training set; the gradient is then calculated only for this selected random example. The step is then made in the direction of this gradient. Thus SGD approximates the gradient of the loss function by the gradient of the loss only on one example:
 
-$t \leftarrow 0\\
+>$t \leftarrow 0\\
 \textbf{while True:}\\
 \quad i \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
 \quad w^t \leftarrow w^{t-1} - \eta_t \nabla L(w^{t-1}|x_i, y_i)\\
@@ -410,7 +410,7 @@ With SGD, learning rate $\eta_t$  must be chosen very carefully, because with th
 #### 1.1.5 Mini-Batch Gradient Descent
 To overcome some of the limitations of the SGD, the _Mini-Batch Gradient Descent_ was introduced. In Mini-Batch GD on every iteration $m$ random examples are chosen from the Training set. The loss function gradient is approximated by the average gradient across the selected $m$ examples, instead of a single example like in SGD. The Mini-Batch GD steps toward the approximation of the gradient on each iteration:
 
-$t \leftarrow 0\\
+>$t \leftarrow 0\\
 \textbf{while True:}\\
 \quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
 \quad w^t \leftarrow w^{t-1} - \eta_t \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
@@ -424,3 +424,132 @@ Depending on the batch size $m$, this approach can still be used in online learn
 There is another problem with both Deterministic and Stochastic variations of the GD method; it is known from calculus that the gradient is always orthogonal to the level lines. If one starts at some point $w^0$, and then makes a step that lands on the other side of the function, and then another step that lands on the opposite side again, and so on... In such setting the GD will oscillate and it will take the GD many iterations to converge. See figure below for illustration:
 
 ![gd oscillation](images\1_1_5-1x.png =300x)
+
+#### 1.1.6 Gradient Descent Extensions
+Some advanced optimization techniques can be used to improve the GD methods. It was shown above that in some conditions GD can oscillate on difficult functions before it converges.
+
+##### 1.1.6.1 Momentum
+_Momentum_ method is an extension of the Mini-Batch GD that maintains an additional vector $h$ at every iteration of the GD and uses it in its updates of the parameter vector $w$. The algorithm is:
+
+>$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
+\quad h_t \leftarrow \alpha h_{t-1} + \eta_t g_t\\
+\quad w^t \leftarrow w^{t-1} - h_t\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+Vector $h_t$ is essentially a weighted sum of gradients from all previous iterations, as well as the current iteration. This modification allows the Mini-Batch GD to work in conditions when in some locations of the parameter space the gradients tend to have the same sign, so they lead to the minimum, while in others they tend to revert the sign and result in oscillations. Momentum vector $h_t$ would be large for coordinates where gradients have the same sign on every iteration and will allow for large steps at these coordinates. For coordinates where the gradients revert the sign, their contributions to $h_t$ will mostly cancel each other out and $h_t$ will be close to zero. So $h_t$ cancels some of the parameter space coordinates that lead to oscillations and helps to achieve better convergence.
+
+This additional feature introduces a new hyperparameter $\alpha$ with the typical value $\alpha=0.9$.
+
+Figure below shows the modification of the oscillation example from the previous section; with Momentum added and the same initial step size, the GD does not oscillate, and converges towards the optimum instead:
+
+![momentum gd](images\1_1_6_1-1.png =300x)
+
+In practice, the momentum leads to faster convergence. On the figure above, SGD with momentum does not oscillate nearly as much as the one on the previous figure.
+
+##### 1.1.6.2 Nesterov Momentum
+_Nesterov Momentum_ is an extension of the Momentum method. It has a stronger theoretical convergence guarantees for convex functions and in practice also works slightly better than standard momentum.
+
+In the simple Momentum method, on every iteration, a gradient $g_t$ at current point $w^{t-1}$ is calculated, and then a gradient step is taken in the direction that is a linear combination of the momentum vector $h_{t-1}$ and the gradient vector $g_t$.
+
+Since the optimizer will move in the direction of momentum, it may be beneficial to do the first step in the direction $h_t$ to get some new approximation of the parameter vector and then to calculate approximation of the gradient of the loss function at some new point $w^{t-1} + h_t$:
+
+![nesterov momentum](images\1_1_6_2-1.png =600x)
+
+Mathematically, the following update is being carried out:
+
+$h_t \leftarrow \alpha h_{t-1} + \eta_t \nabla L(w^{t-1} - \alpha h_{t-1})$
+
+The algorithm for Mini-Batch GD with Nesterov Momentum is:
+
+>$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1} - \alpha h_{t-1}|x_j, y_j)}\\
+\quad h_t \leftarrow \alpha h_{t-1} + \eta_t g_t\\
+\quad w^t \leftarrow w^{t-1} - h_t\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+In practice this method leads to better convergence than momentum method.
+
+##### 1.1.6.3 Ada Grad
+Both Momentum method and Nesterov Momentum method work well for complex functions, but they still require to choose the learning rate and are very sensitive to the choice.
+
+_Ada Grad_ (for adaptive gradient algorithm) is an algorithm for gradient based optimization that adapts the learning rate to the parameters, performing smaller updates (i.e. low learning rates) for parameters associated with frequently occurring features and larger updates (i.e. high learning rates) for parameters associated with infrequent features. It is well suited for dealing with sparse data. Informally, this increases the learning rate for more sparse parameters and decreases the learning rate for less sparse ones. This strategy often improves convergence performance over standard stochastic gradient descent in settings where data is sparse and sparse parameters are more informative. It still has a base learning rate $\eta$.
+
+Recall how a gradient step is made just for one coordinate $g$ of the parameter vector $w$. Now let $w_j^{t-1}$ be the $j$-th element of the $t-1$ iteration of the parameter vector $w$. The corresponding component from the gradient vector $g_{tj}$ (iteration $t$, component $j$) is then subtracted to obtain the new value:
+
+$w_j^t \leftarrow w_j^{t-1} - g_{tj}$
+
+where $g_{tj}$ is the gradient at time/iteration $t$ with respect to the $j$-th parameter.
+
+In Ada Grad, an additional axillary vector $G$ for each element of the parameter vector $w$ is maintained. Such elements $G_j$ match with the elements of the parameter vector $w_j$. Values $G_j$ are calculated as follows:
+
+$G_j^t \leftarrow G_j^{t-1} + g_{tj}^2$
+
+Essentially, elements of vector $G$ are sums of squares of gradients from all previous iterations. The gradient step is then modified as follows:
+
+$w_j^t \leftarrow w_j^{t-1} - \eta_t \frac{g_{tj}}{\sqrt{G_j^t + \epsilon}}$
+
+The learning rate $\eta_t$ divided by the $\sqrt{G_j^t + \epsilon}$ where $\epsilon$ is some small number added to ensure that no division by zero  is possible. This makes the Ada Grad method to choose the learning rate adaptively and allows to relax the requirements to selection of $\eta_t$. Learning rate $\eta_t$ can the a fixed number at $\eta_t=\eta=0.01$, and since $G_j^t$ always increases, the will lead to the reduction of the learning rate and early stops.
+
+Ada Grad has several disadvantages. The axillary vector $G_j^t$ accumulates the squares of gradients and at some step $t$ it will become to large and numerically unstable. If the learning rate $\eta$ is divided by the large number the GD will stop from progressing.
+
+Algorithm below implements the Ada Grad algorithm:
+
+>$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
+\quad \ \textbf{for} \ j \ \textbf{in} \ 1 \dots p \textbf{:}\\
+\quad \quad G_j^t \leftarrow G_j^{t-1} + g_{tj}^2\\
+\quad \quad w_j^t \leftarrow w_j^{t-1} - \eta_t \frac{g_{tj}}{\sqrt{G_j^t + \epsilon}}\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+While designed for convex problems, AdaGrad has been successfully applied to non-convex optimization.
+
+##### 1.1.6.4 RMSProp
+_RMSProp_ (for Root Mean Square Propagation) is an improvement of Ada Grad and is also a method in which the learning rate is adapted for each of the parameters. This method is very similar to Ada Grad, but here an exponentially weighted average of squares of gradients on each step. So the update of the axillary parameter vector $G^t$ becomes:
+
+$G_j^t \leftarrow \alpha G_j^{t-1} + (1-\alpha) g_{tj}^2$
+
+The additional _forgetting parameter_ $\alpha$ is typically set at $0.9$. The elements of the parameter vector $w_j^t$ are then updated in the same way as in the Ada Grad algorithm. This modification overcomes the problem of large sums of square gradients, and the learning rate depends mostly on the last example from the gradient descent method.
+
+##### 1.1.6.4 RMSProp
+_Adam_ (short for Adaptive Moment Estimation) is an update to the RMSProp optimizer. In this optimization algorithm, running averages of both the gradients and the second moments of the gradients are used. The axillary vector $G^t$ of the RMSProp is further augmented and conventionally denoted as $\nu_j^t$:
+
+$\nu_j^t \leftarrow \frac{ \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2 }{ 1 - \beta_2^t }$
+
+Note that $\nu_j^t$ has some bias towards zero, especially in the first iterations since it is initialized with zero. So to overcome the bias, it is divided by $1 - \beta_2^t$, where $\beta$ is raised to the power of $t$. This normalization allows to get rid of the zero bias. At first steps the normalization denominator is large, but as $t$ increases, the value of $\beta^t$ decreases, and the normalization denominator approaches $1.0$.
+
+The $\nu_j^t$ variable is then used to update the gradient similar to the Ada Grad and RMSProp:
+
+$w_j^t \leftarrow w_j^t - \eta_t \frac{ g_{tj} }{ \sqrt{\nu_j^t + \epsilon} }$
+
+From the SGD and Momentum methods, it was shown that stochastic optimization may be prone to oscillations. The gradients may be smoothed by adding another auxiliary variable $m_j^t$, which is essentially a sum of gradients to address that issue:
+
+$m_j^t \leftarrow \frac{ \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj} }{ 1 - \beta_1^t }$
+
+The weight update step then becomes:
+
+$w_j^t \leftarrow w_j^t - \eta_t \frac{ m_{tj} }{ \sqrt{\nu_j^t + \epsilon} }$
+
+Putting all of the above together yields the following algorithm:
+
+>$t \leftarrow 0\\
+\textbf{while True:}\\
+\quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
+\quad g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
+\quad \ \textbf{for} \ j \ \textbf{in} \ 1 \dots p \textbf{:}\\
+\quad \quad \nu_j^t \leftarrow \frac{ \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2 }{ 1 - \beta_2^t }\\
+\quad \quad m_j^t \leftarrow \frac{ \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj} }{ 1 - \beta_1^t }\\
+\quad \quad w_j^t \leftarrow w_j^t - \eta_t \frac{ m_{tj} }{ \sqrt{\nu_j^t + \epsilon} }\\
+\quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
+\quad t \leftarrow t+1$
+
+In Adam $\beta_1$ and $\beta_2$ are the forgetting factors for gradients and second moments of gradients, respectively. Squaring and square-rooting is done elementwise. Typical values (as per the original paper [_Adam: A Method for Stochastic Optimization_ by Diederik P. Kingma and Jimmy Baare](https://arxiv.org/abs/1412.6980)) are $\eta=0.001$, $\beta_1=0.9$, $\beta_2=0.999$, and $\epsilon=10^{-8}$.
