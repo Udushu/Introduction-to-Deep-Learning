@@ -520,24 +520,28 @@ $G_j^t \leftarrow \alpha G_j^{t-1} + (1-\alpha) g_{tj}^2$
 
 The additional _forgetting parameter_ $\alpha$ is typically set at $0.9$. The elements of the parameter vector $w_j^t$ are then updated in the same way as in the Ada Grad algorithm. This modification overcomes the problem of large sums of square gradients, and the learning rate depends mostly on the last example from the gradient descent method.
 
-##### 1.1.6.4 RMSProp
+##### 1.1.6.5 Adam
 _Adam_ (short for Adaptive Moment Estimation) is an update to the RMSProp optimizer. In this optimization algorithm, running averages of both the gradients and the second moments of the gradients are used. The axillary vector $G^t$ of the RMSProp is further augmented and conventionally denoted as $\nu_j^t$:
 
-$\nu_j^t \leftarrow \frac{ \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2 }{ 1 - \beta_2^t }$
+$\nu_j^t \leftarrow \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2$
 
-Note that $\nu_j^t$ has some bias towards zero, especially in the first iterations since it is initialized with zero. So to overcome the bias, it is divided by $1 - \beta_2^t$, where $\beta$ is raised to the power of $t$. This normalization allows to get rid of the zero bias. At first steps the normalization denominator is large, but as $t$ increases, the value of $\beta^t$ decreases, and the normalization denominator approaches $1.0$.
+$\hat{ν}_j ← \frac{ν_j}{1 - \beta_2^t}$
 
-The $\nu_j^t$ variable is then used to update the gradient similar to the Ada Grad and RMSProp:
+Note that $\nu_j^t$ has some bias towards zero, especially in the first iterations since it is initialized with zero. So to overcome the bias, term $\hat{ν}_j$ is introduced by dividing $ν_j$ by $1 - \beta_2^t$, where $\beta_2$ is raised to the power of $t$. This normalization allows to get rid of the zero bias. At first steps the normalization denominator is large, but as $t$ increases, the value of $\beta^t$ decreases, and the normalization denominator approaches $1.0$.
 
-$w_j^t \leftarrow w_j^t - \eta_t \frac{ g_{tj} }{ \sqrt{\nu_j^t + \epsilon} }$
+The $\hat{ν}_j$ variable is then used to update the gradient similar to the Ada Grad and RMSProp:
+
+$w_j^t \leftarrow w_j^t - \eta_t \frac{ g_{tj} }{ \sqrt{\hat{ν}_j} + ϵ }$
 
 From the SGD and Momentum methods, it was shown that stochastic optimization may be prone to oscillations. The gradients may be smoothed by adding another auxiliary variable $m_j^t$, which is essentially a sum of gradients to address that issue:
 
-$m_j^t \leftarrow \frac{ \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj} }{ 1 - \beta_1^t }$
+$m_j^t \leftarrow \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj}$
+
+$\hat{m}_j ← \frac{m_j}{1 - \beta_1^t}$
 
 The weight update step then becomes:
 
-$w_j^t \leftarrow w_j^t - \eta_t \frac{ m_{tj} }{ \sqrt{\nu_j^t + \epsilon} }$
+$w_j^t \leftarrow w_j^t - \eta_t \frac{ \hat{m}_{tj} }{ \sqrt{\hat{ν}_j} + ϵ }$
 
 Putting all of the above together yields the following algorithm:
 
@@ -546,10 +550,413 @@ Putting all of the above together yields the following algorithm:
 \quad i_1, \dots, i_m \leftarrow \mathcal{U}\left\{ 1,n \right\}\\
 \quad g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
 \quad \ \textbf{for} \ j \ \textbf{in} \ 1 \dots p \textbf{:}\\
-\quad \quad \nu_j^t \leftarrow \frac{ \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2 }{ 1 - \beta_2^t }\\
-\quad \quad m_j^t \leftarrow \frac{ \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj} }{ 1 - \beta_1^t }\\
-\quad \quad w_j^t \leftarrow w_j^t - \eta_t \frac{ m_{tj} }{ \sqrt{\nu_j^t + \epsilon} }\\
+\quad \quad m_j^t \leftarrow  \beta_1 m_j^{t-1} + (1-\beta_1) g_{tj}\\
+\quad \quad \nu_j^t \leftarrow \beta_2 \nu_j^{t-1} + (1-\beta_2) g_{tj}^2 \\
+\quad \quad \hat{m}_j^t \leftarrow \frac{ m_j^t }{ 1 - \beta_1^t }\\
+\quad \quad \hat{\nu}_j^t \leftarrow \frac{ \nu_j^t }{ 1 - \beta_2^t }\\
+\quad \quad w_j^t \leftarrow w_j^t - \eta_t \frac{ \hat{m}_{tj} }{ \sqrt{\hat{ν}_j} + ϵ }\\
 \quad \textbf{if} \ {\lVert w^t - w^{t-1} \rVert}^2 < \epsilon \ \textbf{then break}\\
 \quad t \leftarrow t+1$
 
 In Adam $\beta_1$ and $\beta_2$ are the forgetting factors for gradients and second moments of gradients, respectively. Squaring and square-rooting is done elementwise. Typical values (as per the original paper [_Adam: A Method for Stochastic Optimization_ by Diederik P. Kingma and Jimmy Baare](https://arxiv.org/abs/1412.6980)) are $\eta=0.001$, $\beta_1=0.9$, $\beta_2=0.999$, and $\epsilon=10^{-8}$.
+
+#### 1.1.7 Coding Two Dimensional Classification problem
+##### 1.1.7.1 Setting Up the Problem
+First import the dependencies into the environment. For the sake of example, the problem is to be coded up in bare `numpy` to illustrate the inner details of the algorithms. In some steps `sklearn` will be drawn upon, for support roles like dataset and polynomial feature generation.
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+from sklearn.preprocessing import PolynomialFeatures
+```
+Generate dataset for two dimensional classification:
+```python
+with open('train.npy', 'rb') as fin:
+    X = np.load(fin)
+
+with open('target.npy', 'rb') as fin:
+    y = np.load(fin)
+
+plt.figure(figsize=(6,6))
+plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Paired, s=20)
+plt.show()
+```
+This results in the following dataset:
+
+![optimization example dataset](images\1_1_7_1-1.png =400x)
+
+This problem is clearly beyond the capabilities of a simple logistic regression classifier with its linear hypothesis function and requires some non-linearity to be added to the model. A simple way to do that is to throw in some polynomial features to make the problem linearly seprable. The idea is displayed on the figure below:
+
+![kernel](images\1_1_7_1-2.png =600x)
+
+```python
+X = PolynomialFeatures(degree=2).fit_transform(X)
+print(X.shape)
+
+# (826, 6)
+```
+
+##### 1.1.7.2 Logistic Regression
+To classify objects, one has to obtain the probability that an object belongs to class ′1′. To predict the probability, linear model and logistic function may be used:
+
+$P(y_j = 1|x_j, w) = \frac{1}{1+e^{w^T x_j}} = \sigma(w^T x)$
+
+```python
+def probability(X, w):
+    """
+    Given input features and weights
+    return predicted probabilities of y==1 given x, P(y=1|x), see description above
+
+    :param X: feature matrix X of shape [n_samples,6] (expanded)
+    :param w: weight vector w of shape [6] for each of the expanded features
+    :returns: an array of predicted probabilities in [0,1] interval.
+    """
+    return  1 / (1 + np.exp(-np.matmul(X,w)))
+```
+
+In logistic regression the optimal parameters w are found by cross-entropy minimization:
+
+$L(W) = -\frac{1}{n} \displaystyle\sum_{i=1}^{n}{ \left\{ y_i \ln{(P(y_i|x_i,w))} + (1-y_i) \ln{(1 - P(y_i|x_i,w))} \right\} }$
+
+```python
+def compute_loss(X, y, w):
+    """
+    Given feature matrix X [n,6], target vector [n] of 1/0,
+    and weight vector w [6], compute scalar loss function using formula above.
+    """
+    n = X.shape[0]
+    return -(1/n)*sum(y*np.log(probability(X,w)) +
+                      (1-y)*np.log(1 - probability(X,w)))
+```
+
+The next critical component is the gradient of the loss function:
+
+$\nabla_w L(w) = \frac{1}{n} \left[ P(y_i|x_i, w) - y_i \right]x_i$
+
+```python
+def compute_grad(X, y, w):
+    """
+    Given feature matrix X [n,6], target vector [n] of 1/0,
+    and weight vector w [6], compute vector [6] of derivatives of L over each weights.
+    """
+    n = X.shape[0]
+    g =  (np.dot(probability(X, w)-y ,X)) / n
+    return g
+```
+
+It may will be handy to visualize the calculations of the gradient, so an auxiliary  function that visualizes the predictions was devised:
+
+```python
+from IPython import display
+
+h = 0.01
+x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+def visualize(X, y, w, history):
+    """draws classifier prediction with matplotlib magic"""
+    plt.figure(figsize=(14,6))
+    Z = probability(expand(np.c_[xx.ravel(), yy.ravel()]), w)
+    Z = Z.reshape(xx.shape)
+    plt.subplot(1, 2, 1)
+    plt.contourf(xx, yy, Z, alpha=0.8)
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Paired)
+    plt.xlim(xx.min(), xx.max())
+    plt.ylim(yy.min(), yy.max())
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history)
+    plt.grid()
+    ymin, ymax = plt.ylim()
+    plt.ylim(0, ymax)
+    display.clear_output(wait=True)
+    plt.show()
+
+dummy_weights = np.random.uniform(low=-1, high=1, size=X_expanded.shape[1])
+visualize(X, y, dummy_weights, [0.5, 0.05, 0.005])
+```
+![example with dummy weights](images\1_1_7_1-3.png =800x)
+
+##### 1.1.7.3 Training
+In the following sections, the functions written above will be used to train a classifier using variations of the stochastic gradient descent.
+
+```python
+n_iter     = 1000  # Number Mini-Batch SGD iterations
+batch_size = 50    # Batch size
+```
+
+###### 1.1.7.3.1 Mini-Batch SGD
+Stochastic gradient descent just takes a random example on each iteration, calculates a gradient of the loss on it and makes a step:
+
+$w_t = w_{t-1} - \eta \dfrac{1}{m} \sum_{j=1}^m \nabla_w L(w_t, x_{i_j}, y_{i_j})$
+
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 1])
+
+η = 0.1 # learning rate
+
+# Define the vector to store the values of the loss function for plotting
+mb_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    mb_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Update weight vector by subtracting the gradient value from the current
+    # weight vector scaled by the learning rate η
+    w = w - η*compute_grad(X_expanded[ind, :], y[ind], w)
+
+visualize(X, y, w, mb_loss)
+print('Final weigts:', w)
+
+# [ 2.73117388  1.24373036 -1.19689803 -1.0963212  -0.73486328 -1.1107151 ]
+plt.clf()
+```
+![mini-batch sgd](images\1_1_7_3-1.png =800x)
+
+###### 1.1.7.3.2 SGD with Momentum
+Momentum is a method that helps accelerate SGD in the relevant direction and dampens oscillations as can be seen in image below. It does this by adding a fraction $\alpha$ of the update vector of the past time step to the current update vector:
+
+$g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
+h_t \leftarrow \alpha h_{t-1} + \eta_t g_t\\
+w^t \leftarrow w^{t-1} - h_t$
+
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 1])
+
+h = np.zeros_like(w) # gradient vector with momentum term
+
+η = 0.1 # learning rate
+α = 0.9 # Momentum
+
+# Define the vector to store the values of the loss function for plotting
+momentum_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    momentum_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Compute the approximation of the gradient vector based on the current batch
+    g = compute_grad(X_expanded[ind, :], y[ind], w)
+
+    # Compute the gradient with momentum
+    h = α*h + η*g
+    # Update weight vector by subtracting the gradient with the momentum
+    w = w - h
+
+visualize(X, y, w, momentum_loss)
+print('Final weigts:', w)
+
+#[ 4.48576749  1.56981133 -1.45100899 -1.84156623 -0.68570656 -2.04725838]
+plt.clf()
+```
+![momentum sgd](images\1_1_7_3-2.png =800x)
+
+###### 1.1.7.3.3 SGD with Nesterov Momentum
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 1])
+
+h = np.zeros_like(w) # gradient vector with momentum term
+
+η = 0.1 # learning rate
+α = 0.9 # Momentum
+
+# Define the vector to store the values of the loss function for plotting
+nesterov_momentum_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    nesterov_momentum_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Compute the approximation of the gradient vector based on the current batch
+    g = compute_grad(X_expanded[ind, :], y[ind], w - α*h)
+
+    # Compute the gradient with momentum
+    h = α*h + η*g
+    # Update weight vector by subtracting the gradient with the momentum
+    w = w - h
+
+visualize(X, y, w, nesterov_momentum_loss)
+print('Final weigts:', w)
+
+# [ 4.48097379  1.56535413 -1.45691541 -1.83597497 -0.68090021 -2.03605128]
+plt.clf()
+```
+![nesterov momentum sgd](images\1_1_7_3-3.png =800x)
+
+###### 1.1.7.3.4 Ada Grad
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 1])
+
+G = np.zeros_like(w) # axillary vector
+
+η = 0.1 # learning rate
+ϵ = 1e-9 # division by zero avoidance term
+
+# Define the vector to store the values of the loss function for plotting
+adagrad_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    adagrad_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Compute the approximation of the gradient vector based on the current batch
+    g = compute_grad(X_expanded[ind, :], y[ind], w)
+
+    # Compute the axillary vector
+    G = G + g**2
+
+    # Update weight vector by subtracting the gradient with the momentum
+    w = w - η * g / np.sqrt(G + ϵ)
+
+visualize(X, y, w, adagrad_loss)
+print('Final weigts:', w)
+
+# [ 3.14844941  1.35891896 -1.29020673 -1.3228176  -0.7671276  -1.23983105]
+plt.clf()
+```
+![ada grad sgd](images\1_1_7_3-4.png =800x)
+
+###### 1.1.7.3.5 RMS Prop
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 1])
+
+G = np.zeros_like(w) # axillary vector
+
+η = 0.1 # learning rate
+ϵ = 1e-9 # division by zero avoidance term
+α = 0.9 # forgeting parameter
+
+# Define the vector to store the values of the loss function for plotting
+rmsprop_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    rmsprop_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Compute the approximation of the gradient vector based on the current batch
+    g = compute_grad(X_expanded[ind, :], y[ind], w)
+
+    # Compute the axillary vector
+    G = α*G + (1-α)*(g**2)
+
+    # Update weight vector by subtracting the gradient with the momentum
+    w = w - η * g / np.sqrt(G + ϵ)
+
+visualize(X, y, w, rmsprop_loss)
+print('Final weigts:', w)
+
+# [ 4.59134556  1.5307786  -1.64482144 -1.87707562 -0.52310732 -2.39735978]
+plt.clf()
+```
+![RMS Prop sgd](images\1_1_7_3-5.png =800x)
+
+###### 1.1.7.3.6 Adam
+```python
+np.random.seed(42)
+w = np.array([0, 0, 0, 0, 0, 0])
+
+ν = np.zeros_like(w) # axillary vector 1
+m = np.zeros_like(w) # axillary vector 1
+
+η = 0.1 # learning rate
+ϵ = 1e-8 # division by zero avoidance term
+β1 = 0.900 # forgeting parameter
+β2 = 0.999 # second Adam parameter
+
+# Define the vector to store the values of the loss function for plotting
+adam_loss = np.zeros(n_iter)
+
+# Start a new figure
+plt.figure(figsize=(12, 5))
+
+# Iterate through the loss function and update the weights vector on each iteration
+for i in range(n_iter):
+    # Choose the random indicies of the training examples
+    ind = np.random.choice(X_expanded.shape[0], batch_size)
+    # Compute the loss function value
+    adam_loss[i] = compute_loss(X_expanded, y, w)
+
+    # Compute the approximation of the gradient vector based on the current batch
+    g = compute_grad(X_expanded[ind, :], y[ind], w)
+
+    # Compute the axillary vectors
+    m = β1*m + (1-β1)*g # Update biased first moment estimate
+    ν = β2*ν + (1-β2)*(g**2) # Update biased second raw moment estimate    
+    m_hat = m / (1 - (β1**(i+1))) # Compute bias-corrected first moment estimate
+    ν_hat = ν / (1 - (β2**(i+1))) # Compute bias-corrected second raw moment estimate
+
+    w = w - η * m_hat / (np.sqrt(ν_hat) + ϵ) # Update parameter vector
+
+visualize(X, y, w, adam_loss)
+print('Final weigts:', w)
+
+# [ 4.44124144  1.4119737  -1.79859381 -2.04675374 -0.60917307 -2.35614086]
+plt.clf()
+```
+![Adam sgd](images\1_1_7_3-6.png =800x)
+
+##### 1.1.7.4 Comparing the Classifiers
+Finally, the losses and their progress was compared for all explored classifiers over the same number of iterations and with the same batch size and learning rate $η$. Figure below illustrates the results:
+```python
+plt.figure(figsize=(8,5))
+plt.plot(mb_loss, label='Mini-Batch SGD')
+plt.plot(momentum_loss, label='Momentum SGD')
+plt.plot(nesterov_momentum_loss, label='Nesterov Momentum SGD')
+plt.plot(adagrad_loss, label='Ada Grad SGD')
+plt.plot(rmsprop_loss, label='RMS Prop SGD')
+plt.plot(adam_loss, label='Adam SGD')
+plt.yscale('log'); plt.xscale('log')
+plt.xlabel('Iteration'); plt.ylabel('Loss')
+plt.grid(); plt.legend(); plt.show()
+```
+
+![Comparing Losses](images\1_1_7_4-1.png)
+
+Figure shows that the loss reduction rate is the best in the RMS Prop and Adam optimizers. Momentum and Nesterov momentum show nearly identical results and follow third. Finally vanilla mini-batch SGD and Ada Grad are the slowest converging algorithms. Although it is worth noting that over 1,000 iterations, all 6 explored algorithm have converged onto the same local minimum and the same loss value.
+
+## 1.2 Feed-Forward Neural Networks
+### 1.2.1 Multilayer Perceptron
+### 1.2.2 Matrix derivatives
+### 1.2.3 TensorFlow Framework
+### 1.2.4 MNIST Digit Classification with TensorFlow
+### 1.2.5 Keras Framework
+### 1.2.6 MNIST Digit Classification with Keras
+### 1.2.7 Neural Networks the Hard Way
