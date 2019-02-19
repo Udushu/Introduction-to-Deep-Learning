@@ -687,7 +687,7 @@ n_iter     = 1000  # Number Mini-Batch SGD iterations
 batch_size = 50    # Batch size
 ```
 
-###### 1.1.7.3.1 Mini-Batch SGD
+###### Mini-Batch SGD
 Stochastic gradient descent just takes a random example on each iteration, calculates a gradient of the loss on it and makes a step:
 
 $w_t = w_{t-1} - \eta \dfrac{1}{m} \sum_{j=1}^m \nabla_w L(w_t, x_{i_j}, y_{i_j})$
@@ -723,7 +723,7 @@ plt.clf()
 ```
 ![mini-batch sgd](images\1_1_7_3-1.png =800x)
 
-###### 1.1.7.3.2 SGD with Momentum
+###### SGD with Momentum
 Momentum is a method that helps accelerate SGD in the relevant direction and dampens oscillations as can be seen in image below. It does this by adding a fraction $\alpha$ of the update vector of the past time step to the current update vector:
 
 $g_t \leftarrow \frac{1}{m} \displaystyle\sum_{j=1}^{m}{\nabla L(w^{t-1}|x_j, y_j)}\\
@@ -768,7 +768,15 @@ plt.clf()
 ```
 ![momentum sgd](images\1_1_7_3-2.png =800x)
 
-###### 1.1.7.3.3 SGD with Nesterov Momentum
+###### SGD with Nesterov Momentum
+Since the optimizer will move in the direction of momentum, it may be beneficial to do the first step in the direction $h_t$ to get some new approximation of the parameter vector and then to calculate approximation of the gradient of the loss function at some new point $w^{t-1} + h_t$:
+
+Mathematically, the following update is being carried out:
+
+$h_t \leftarrow \alpha h_{t-1} + \eta_t \nabla L(w^{t-1} - \alpha h_{t-1})$
+
+Implementation of the Nesterov Momentum optmizer requires additional momentum vector $h_t$ and the momentum scaling factor $α$ added to the code.
+
 ```python
 np.random.seed(42)
 w = np.array([0, 0, 0, 0, 0, 1])
@@ -807,7 +815,17 @@ plt.clf()
 ```
 ![nesterov momentum sgd](images\1_1_7_3-3.png =800x)
 
-###### 1.1.7.3.4 Ada Grad
+###### Ada Grad
+In Ada Grad, an additional axillary vector $G$ for each element of the parameter vector $w$ is maintained. Such elements $G_j$ match with the elements of the parameter vector $w_j$. Values $G_j$ are calculated as follows:
+
+$G_j^t \leftarrow G_j^{t-1} + g_{tj}^2$
+
+Essentially, elements of vector $G$ are sums of squares of gradients from all previous iterations. The gradient step is then modified as follows:
+
+$w_j^t \leftarrow w_j^{t-1} - \eta_t \frac{g_{tj}}{\sqrt{G_j^t + \epsilon}}$
+
+The implementation is again straightforward, simply axillary vector $G$ is added and its values are used to update the elements of vector $G$.
+
 ```python
 np.random.seed(42)
 w = np.array([0, 0, 0, 0, 0, 1])
@@ -847,7 +865,13 @@ plt.clf()
 ```
 ![ada grad sgd](images\1_1_7_3-4.png =800x)
 
-###### 1.1.7.3.5 RMS Prop
+###### RMS Prop
+This method is very similar to Ada Grad, but here an exponentially weighted average of squares of gradients on each step. So the update of the axillary parameter vector $G^t$ becomes:
+
+$G_j^t \leftarrow \alpha G_j^{t-1} + (1-\alpha) g_{tj}^2$
+
+The additional _forgetting parameter_ $\alpha$ is typically set at $0.9$. Implementation is similar to the one of the Ada Grad:
+
 ```python
 np.random.seed(42)
 w = np.array([0, 0, 0, 0, 0, 1])
@@ -888,7 +912,9 @@ plt.clf()
 ```
 ![RMS Prop sgd](images\1_1_7_3-5.png =800x)
 
-###### 1.1.7.3.6 Adam
+###### Adam
+_Adam_ (short for Adaptive Moment Estimation) is an update to the RMS Prop optimizer. In this optimization algorithm, running averages of both the gradients and the second moments of the gradients are used:
+
 ```python
 np.random.seed(42)
 w = np.array([0, 0, 0, 0, 0, 0])
@@ -954,6 +980,126 @@ Figure shows that the loss reduction rate is the best in the RMS Prop and Adam o
 
 ## 1.2 Feed-Forward Neural Networks
 ### 1.2.1 Multilayer Perceptron
+Multilayer Preceptrion (MLP) is the simplest of the neural networks. To understand how it operates, first recall the task of linear binary classification. In this task, the features $\left( x_1, x_2, \dots, x_p\right)$ are placed in juxtaposition with the labels or targets $y \in \left\{-1, 1 \right\}$:
+
+![binary classification recall](images\1_2_1-1.png =300x)
+
+The decision function $d(x)$ is a linear combination of the features ans is expressed as:
+
+$d(x) = w_0 + w_1 x_1 + w_2 x_2 + \dots + w_p x_p$
+
+The $\text{sign}(x) = \begin{cases}
+  1  &\text{if} \ x ≥ 0 \\
+  -1 &\text{otherwise}
+  \end{cases}$ function of the decision function can then be used to make predictions. If the new observation is located to the north of the line where the decision function equals zero, then the value of the decision function will be positive and $\text{sign}(d(x|x≥0))$ of that value will be $+1$, and if the new observation is located to the south of the decision line, then the value of the decision function will be negative and $\text{sign}(d(x|x<0))=-1$.
+
+Thus the prediction is made by:
+
+$\hat{y} = h_w(x) = \text{sign}\left( d(x) \right)$
+
+The extension of the simplest binary classification task is a _Logistic Regression_ algorithm, that predicts the new class by assigning the probability score of the observation belonging to that class. The value of the decision function $d(x)$ is converted into the class probability using the logistic or sigmoid function. Sigmoid function can transform any value to the range $(0,1)$, so the output can be interpreted as valid probabilities.
+
+$\hat{y} = h_w(x) = σ(d(x)) = \frac{1}{1 + e^{-d(x)}}$
+
+![sigmoid activation recall](images\1_2_1-2.png =300x)
+
+The advantage of the _Logistic Regression_ over a simple classification algorithm, is that it not only outputs the $+1$ or $-1$ but also, what is the probability of $+1$. This works, since the decision function $d(x)$ provides not only the information on what side of the decision boundary the observation is located at (through the sign of the $d(x)$), but also the distance from the decision boundary to the observation.
+
+![logistic classification recall](images\1_2_1-3.png =300x)
+
+That distance can be converted into confidence in the classification result, since the further point away from the decision boundary, the higher is the confidence in either positive or the negative class. If the observation is exactly on the decision boundary, then $d(x|x\text{ is on the decision boundary})=0$, then $σ(d(x|x\text{ is on the decision boundary}))=0.5$, and that means that either class is equally likely. However, far from the line in the positive direction as $d(x) → ∞$, the sigmoid will $σ(d(x)) → 1.0$, and conversely as $d(x) → -∞$, the sigmoid will $σ(d(x)) → 0.0$
+
+However, linear models cannot provide solutions to all possible classification tasks. Linear models are simple and easy to understand, but quite often the observations from the positive and negative classes cannot be separated by a line. Figure below shows a case when a negative classes are arranged around the positive classes in a triangular fashion:
+
+![triangular problem](images\1_2_1-4.png =250x)
+
+It can be shown, however, that the problem can be solved by separating the classification task into a set of sub-problems. Neither of the sub-problems tries to solve the original problem ideally, however, they provide a series of lines, each providing a valuable feature for future classification, so it's a valuable information. Figure below shows an example of such lines for the triangular problem:
+
+![one feature for the triangular problem](images\1_2_1-5.png =250x)
+
+This lines helps to separate out the negative examples on the left of the feature set, and can be treated as the first linear sub-classifier:
+
+$z_1 = σ(w_{0,1} + w_{1,1} x_1 + w_{2,1} x_2)$
+
+This can be extended to two more sub-classifiers, to create a series of linear boundaries that surround the positive examples. Each line is provided by a logistic regression classifier.
+
+![three classifiers the triangular problem](images\1_2_1-6.png =250x)
+
+Each lines is give by its own individual equation:
+
+$z_i = σ(w_{0,i} + w_{1,i} x_1 + w_{2,i} x_2) \quad i=1,2,3$
+
+The predictions of these linear logistic regression classifiers can be used as a new set of features in this classification task. Take an example point from the dataset and observe how it is converted from the $(x_1, x_2)$ representation into a new feature vector $(z_1, z_2, z_3)$:
+
+![representation conversion triangular problem](images\1_2_1-7.png =500x)
+
+Since each classifier is a logistic regression model, computation $z_1(x)$ is on the positive side of the first line, but is close to it, so the score is just above the parity value at $0.6$. Fore the second classifier, the value is below the decision line so the value is below the parity at $0.3$. Finally the third mode is confident in its prediction of the positive class, since all explored point is on the same side where the positive examples are and is far from the decision line so the predicted probability of the positive class $0.8$.
+
+A new linear model can be built that uses these new features and makes predictions:
+
+$a(x) = σ(w_{0,2} + w_{1,2} x_1 + w_{2,2} x_2)$
+
+This gives the complete algorithm to run predictions once all elements of the parameter vectors are found:
+
+$z_i = σ(w_{0,i} + w_{1,i} x_1 + w_{2,i} x_2) \quad i=1,2,3 \\
+ a(x) = σ(w_{0,2} + w_{1,2} x_1 + w_{2,2} x_2)$
+
+The algorithm can now be written down in a form of the _computational graph_:
+
+![computational graph](images\1_2_1-8.png =400x)
+
+In the graph the nodes are the computed variables: $x_1$, $x_2$, $z_1$, $z_2$, $z_3$ and $a$, and the edges are the dependencies: $x_1$ and $x_2$ are needed to compute $z_i$, and $z_1$, $z_2$, $z_3$ are needed to compute $a$.
+
+Such computational graph is known as the _Multilayer Perceptron (MLP)_ and the layers of the graph have specific names:
+
+![multilayer Perceptron](images\1_2_1-9.png =400x)
+
+The following _layers_ are recognized:
+
+* The first layer is called the _input layer_. It usually contains the features that are the inputs into the model.
+
+* The final and the last layer is called the _output layer_. It contains predictions of the model.
+
+* Any layers between the input layer and the output layer are called the _hidden layer(s)_. The hidden layers contain nodes known as neurons. A neuron is anything that takes a linear combination of the inputs and then applies some form of non-linear activation function; for example the activation functions explored so far are the $\text{sign}(x)$ and $σ(x)$.
+
+The nodes of the hidden layer are called _artificial neurons_ since their operation is somewhat similar to the operation of the neurons in the brain. A neuron is some complex cell that gets some signals from other similar cells and the based on some logic inside the it, produces an output signal, or not. The signal is then transmitted to other neuron cells. Figure below illustrates a neuron in a human brain:
+
+![neuron](images\1_2_1-10.png =400x)
+
+Conversely, here is an approximation of the neuron: an artificial neuron with logistic activation function:
+
+![artificial neuron](images\1_2_1-11.png =400x)
+
+This results in an artificial neuron with behavior similar to a neuron in a human brain. The artificial neuron has inputs $x_1$, $x_2$, and $1$ (bias term), it has some weights represented by vector $w$. The inputs are multiplied by the weights and take the sum of them: a linear combination of inputs. Based on that sum, the decision whether to output the signal or not is taken by the activation function. The activation function is called so, since it is a smooth indicator function approximation. The indicator function outputs $1$ if the value is positive and $0$ if the value is negative. The sigmoid function approximates the indicator behavior by providing some smoothing so that the problem becomes differentiable. The activation function allows the neuron to activate when a certain sum is computed. Thus an artificial neuron is "correlation activated": when it sees an input that is similar to the pattern that it tries to find in a data, the it has an activation in output.
+
+There is a caveat. The activation function has to be non-linear. Consider what happens when the activation function $σ(x)$ is discarded and is replaced with just the output of the final neuron:
+
+![linear artificial neuron](images\1_2_1-12.png =300x)
+
+The mathematical expression for the output is:
+
+$z_1 = w_{1,1} x_1 + w_{2,2} x_2 \\
+ z_2 = w_{1,2} x_1 + w_{2,2} x_2 \\
+ a = w_1 z_1 + w_2 z_2$
+
+One can simplify the expression for $a$:
+
+$a = w_1 z_1 + w_2 z_2 = w_1 × (w_{1,1} x_1 + w_{2,2} x_2) + w_2 × (w_{1,2} x_1 + w_{2,2} x_2) = w_1 w_{1,1} x_1 + w_1  w_{2,2} x_2 + w_2 w_{1,2} x_1 + w_2 w_{2,2} x_2 = k_1 x_1 + k_2 x_2$
+
+Thus without the sigmoid activations, the total expression can be reduced to a simple linear function. Therefore the model can not be simplified any further, and the artificial neuron does requires these non-linear activation functions.
+
+To summarize, the MLP is a type of _artificial neural network_. MLP may have hidden layer or layers (more than one). The _architecture_ of the MLP is set by specifying the following:
+
+* The number of hidden layers.
+* The number of neurons in each hidden layer.
+* Activation functions in each neuron.
+
+Hidden layers in the MLP are known as Dense or Fully-Connected layers, since all neurons in the neighboring layers are connected to each other.
+
+MLP needs to be trained before it can make predictions. A single neuron is simply a _Logistic Regression_ and, therefore can be trained with the SGD or one of its flavors. The function of each neuron is differentiable, and therefore their linear combination with the differential activation functions is also differentiable. Therefore the whole composition that constitutes the MLP is still differentiable. Therefore, in theory, a loss function may be constructed and SGD applied to train the model. The problem here through is that the loss curve might have a lot of local optima and one may actually converge into the local optimum that is quite far from the global value, resulting in a sub-optimal solution. This will happen in practice. If this happen, a start in an different point can be attempted and hopefully this time round it will converge.
+
+At this point, the main problems are gradient computation, since the number of hidden layers and the activation functions may change, and this will have a strong affect on the gradient computation. There could be a lot of neurons, so the gradients have to be computed fast.
+
 ### 1.2.2 Matrix derivatives
 ### 1.2.3 TensorFlow Framework
 ### 1.2.4 MNIST Digit Classification with TensorFlow
